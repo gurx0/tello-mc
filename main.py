@@ -38,9 +38,8 @@ def send_commands():
     while True:
         command = command_queue.get()  # Получаем команду из очереди
         if command:
-
             s.sendto(command.encode(encoding='utf-8'), tello_address)
-def is_palm_open(landmarks):
+def is_palm_close(landmarks):
 
     thumb_dist = landmarks[4].x - landmarks[0].x  # Расстояние между большим пальцем и запястьем
     index_dist = landmarks[8].y - landmarks[5].y  # Расстояние между указательным пальцем и ладонью
@@ -48,10 +47,11 @@ def is_palm_open(landmarks):
     ring_dist = landmarks[16].y - landmarks[13].y  # Безымянный палец
     pinky_dist = landmarks[20].y - landmarks[17].y  # Мизинец
 
+    print(thumb_dist, index_dist, middle_dist, ring_dist, pinky_dist)
     # Если пальцы раздвинуты, то расстояния должны быть достаточными
-    if thumb_dist > 0.1 and index_dist > 0.1 and middle_dist > 0.1 and ring_dist > 0.1 and pinky_dist > 0.1:
+    if thumb_dist < 0.08 and index_dist < 0.05 and middle_dist < 0.05 and ring_dist < 0.05 and pinky_dist < 0.05:
         return True
-    return True
+    return False
 def palm_detection(frame):
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
@@ -59,11 +59,9 @@ def palm_detection(frame):
     if results.multi_hand_landmarks:
         for landmarks in results.multi_hand_landmarks:
             landmarks = landmarks.landmark
-            is_palm = is_palm_open(landmarks)
-            print(True if is_palm else '')
+            is_palm = is_palm_close(landmarks)
             if is_palm:
-                command_queue.put('flip w')  # Добавляем команду поворота влево
-
+                command_queue.put('flip l')  # Добавляем команду поворота влево
 
 def face_detection(frame):
     last_move = 'right'
@@ -202,11 +200,18 @@ command_thread.start()
 # Запуск дрона
 s.sendto('battery?'.encode(encoding='utf-8'), tello_address)
 s.sendto('streamon'.encode(encoding='utf-8'), tello_address)  # Включаем видеопоток
-s.sendto('takeoff'.encode(encoding='utf-8'), tello_address)  # Взлет
+s.sendto('takeoff'.encode(encoding='utf-8'), tello_address)
 time.sleep(3)
-
 
 # Получение данных от пользователя
 while True:
     data = input()
+    if data == 1:
+        data = 'land'
+        print(11231212)
     s.sendto(data.encode(encoding='utf-8'), tello_address)
+
+#0.1362503618001938 0.023539245128631592 0.03446149826049805 0.053423166275024414 0.045372188091278076 ладно
+#-0.08156237006187439 -0.14973154664039612 -0.16173364222049713 -0.15203291177749634 -0.12222155928611755 ладонь палец поджат
+#-0.0871080756187439 -0.1592833399772644 -0.17451351881027222 -0.17287656664848328 -0.14526724815368652 кулак
+#0.10237672924995422 0.007477104663848877 -0.0014872550964355469 0.002845168113708496 0.010414481163024902
