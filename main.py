@@ -66,6 +66,7 @@ def palm_detection(frame):
 
 
 def face_detection(frame):
+    last_move = 'right'
     """Функция для распознавания лиц в кадре"""
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, 1.3, 5)
@@ -108,16 +109,28 @@ def face_detection(frame):
         z = w * h
         print(z)
         if int(z) < 30000:
-            command_queue.put('rc 0 20 0 0')  # Дрон двигается вперед
+            command_queue.put('rc 0 40 0 0')  # Дрон двигается вперед
             # command_queue.put('forward 30')
         elif int(z) > 42500:
-            command_queue.put('rc 0 -20 0 0')  # Дрон двигается назад
+            command_queue.put('rc 0 -40 0 0')  # Дрон двигается назад
             # command_queue.put('back 30')  # Дрон двигается назад
+        else:
+            command_queue.put('rc 0 0 0 0')
+
 
         if face_center_x < frame_center_x - 110:
             command_queue.put('ccw 20')  # Добавляем команду поворота влево
+            last_move = 'left'
         elif face_center_x > frame_center_x + 110:
             command_queue.put('cw 20')  # Добавляем команду поворота вправо
+            last_move = 'right'
+    else:
+        command_queue.put('rc 0 0 0 0')
+        if last_move == 'right':
+            command_queue.put('cw 15')
+        elif last_move == 'left':
+            command_queue.put('ccw 15')
+        # time.sleep(0.5)
 def stream():
     """Поток для захвата и отображения видеопотока"""
     global current_frame
@@ -189,7 +202,7 @@ command_thread.start()
 # Запуск дрона
 s.sendto('battery?'.encode(encoding='utf-8'), tello_address)
 s.sendto('streamon'.encode(encoding='utf-8'), tello_address)  # Включаем видеопоток
-# s.sendto('takeoff'.encode(encoding='utf-8'), tello_address)  # Взлет
+s.sendto('takeoff'.encode(encoding='utf-8'), tello_address)  # Взлет
 time.sleep(3)
 
 
