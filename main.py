@@ -40,18 +40,20 @@ def send_commands():
         if command:
             s.sendto(command.encode(encoding='utf-8'), tello_address)
 def is_palm_close(landmarks):
+    fingertip_ids = [8, 12, 16, 20]
 
-    thumb_dist = landmarks[4].x - landmarks[0].x  # Расстояние между большим пальцем и запястьем
-    index_dist = landmarks[8].y - landmarks[5].y  # Расстояние между указательным пальцем и ладонью
-    middle_dist = landmarks[12].y - landmarks[9].y  # Средний палец
-    ring_dist = landmarks[16].y - landmarks[13].y  # Безымянный палец
-    pinky_dist = landmarks[20].y - landmarks[17].y  # Мизинец
+    for tip_id in fingertip_ids:
+        if landmarks[tip_id].y < landmarks[tip_id - 2].y:
+            return False
 
-    print(thumb_dist, index_dist, middle_dist, ring_dist, pinky_dist)
-    # Если пальцы раздвинуты, то расстояния должны быть достаточными
-    if thumb_dist < 0.08 and index_dist < 0.05 and middle_dist < 0.05 and ring_dist < 0.05 and pinky_dist < 0.05:
-        return True
+    wrist = landmarks[0]
+    thumb = landmarks[4]
+
+    if thumb.y < wrist.y:
+        return True  # Это кулак
+
     return False
+
 def palm_detection(frame):
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
@@ -60,8 +62,12 @@ def palm_detection(frame):
         for landmarks in results.multi_hand_landmarks:
             landmarks = landmarks.landmark
             is_palm = is_palm_close(landmarks)
+            print(is_palm)
             if is_palm:
-                command_queue.put('flip l')  # Добавляем команду поворота влево
+                s.sendto('flip l'.encode(encoding='utf-8'), tello_address)
+                print('flip successful')
+                # command_queue.put('flip f')  # Добавляем команду поворота влево
+                time.sleep(0.1)
 
 def face_detection(frame):
     last_move = 'right'
@@ -84,28 +90,23 @@ def face_detection(frame):
         frame_center_x = frame.shape[1] // 2
         frame_center_y = frame.shape[0] // 2
 
-        print(f"XY: {x}, {y}")
 
         frame = cv2.rectangle(frame, (x,y), (x+w, y+h), (255,0,0), 2)
-        cv2.imshow('Tello Video Stream', frame)
 
-        cv2.waitKey(1)
 
         if face_center_x < frame_center_x - 110:
             command_queue.put('ccw 20')  # Добавляем команду поворота влево
         elif face_center_x > frame_center_x + 110:
             command_queue.put('cw 20')  # Добавляем команду поворота вправо
 
-        print(frame_center_y, face_center_y)
+
         if face_center_y < frame_center_y - 20:
             command_queue.put('up 20')
-            print('up')
         elif face_center_y > frame_center_y + 20:
             command_queue.put('down 20')
-            print('down')
 
         z = w * h
-        print(z)
+
         if int(z) < 30000:
             command_queue.put('rc 0 40 0 0')  # Дрон двигается вперед
             # command_queue.put('forward 30')
@@ -129,6 +130,8 @@ def face_detection(frame):
         elif last_move == 'left':
             command_queue.put('ccw 15')
         # time.sleep(0.5)
+
+    return frame
 def stream():
     """Поток для захвата и отображения видеопотока"""
     global current_frame
@@ -151,10 +154,10 @@ def stream():
 
         # cv2.imshow('Tello Video Stream', frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     break
 
-
+    s.sendto('land'.encode(encoding='utf-8'), tello_address)
     cap.release()
     cv2.destroyAllWindows()
 
@@ -163,7 +166,12 @@ def detect_faces():
     while True:
         with frame_lock:
             if current_frame is not None:
-                face_detection(current_frame)
+                frame = face_detection(current_frame)
+                cv2.imshow('Tello Video Stream', frame)
+
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    s.sendto('land'.encode(encoding='utf-8'), tello_address)
+                    break
                 palm_detection(current_frame)
         time.sleep(0.1)  # Задержка, чтобы не загружать процессор
 
@@ -175,6 +183,7 @@ def recv():
             executed = data.decode(encoding='utf-8')
             print(executed)
         except Exception as ex:
+
             print(ex)
             break
 
@@ -202,16 +211,7 @@ s.sendto('battery?'.encode(encoding='utf-8'), tello_address)
 s.sendto('streamon'.encode(encoding='utf-8'), tello_address)  # Включаем видеопоток
 s.sendto('takeoff'.encode(encoding='utf-8'), tello_address)
 time.sleep(3)
+s.sendto('up 50'.encode(encoding='utf-8'), tello_address)
+time.sleep(3)
 
-# Получение данных от пользователя
-while True:
-    data = input()
-    if data == 1:
-        data = 'land'
-        print(11231212)
-    s.sendto(data.encode(encoding='utf-8'), tello_address)
 
-#0.1362503618001938 0.023539245128631592 0.03446149826049805 0.053423166275024414 0.045372188091278076 ладно
-#-0.08156237006187439 -0.14973154664039612 -0.16173364222049713 -0.15203291177749634 -0.12222155928611755 ладонь палец поджат
-#-0.0871080756187439 -0.1592833399772644 -0.17451351881027222 -0.17287656664848328 -0.14526724815368652 кулак
-#0.10237672924995422 0.007477104663848877 -0.0014872550964355469 0.002845168113708496 0.010414481163024902
