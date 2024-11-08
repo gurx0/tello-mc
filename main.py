@@ -68,7 +68,6 @@ def palm_detection(frame):
                 print('flip successful')
                 # command_queue.put('flip f')  # Добавляем команду поворота влево
                 time.sleep(0.1)
-
 def face_detection(frame):
     last_move = 'right'
     """Функция для распознавания лиц в кадре"""
@@ -107,10 +106,10 @@ def face_detection(frame):
 
         z = w * h
 
-        if int(z) < 30000:
+        if int(z) < 32500:
             command_queue.put('rc 0 40 0 0')  # Дрон двигается вперед
             # command_queue.put('forward 30')
-        elif int(z) > 42500:
+        elif int(z) > 40000:
             command_queue.put('rc 0 -40 0 0')  # Дрон двигается назад
             # command_queue.put('back 30')  # Дрон двигается назад
         else:
@@ -119,16 +118,12 @@ def face_detection(frame):
 
         if face_center_x < frame_center_x - 110:
             command_queue.put('ccw 20')  # Добавляем команду поворота влево
-            last_move = 'left'
         elif face_center_x > frame_center_x + 110:
             command_queue.put('cw 20')  # Добавляем команду поворота вправо
             last_move = 'right'
     else:
         command_queue.put('rc 0 0 0 0')
-        if last_move == 'right':
-            command_queue.put('cw 15')
-        elif last_move == 'left':
-            command_queue.put('ccw 15')
+        command_queue.put('cw 25')
         # time.sleep(0.5)
 
     return frame
@@ -170,10 +165,10 @@ def detect_faces():
                 cv2.imshow('Tello Video Stream', frame)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
-                    s.sendto('land'.encode(encoding='utf-8'), tello_address)
+                    # s.sendto('land'.encode(encoding='utf-8'), tello_address)
                     break
                 palm_detection(current_frame)
-        time.sleep(0.1)  # Задержка, чтобы не загружать процессор
+        time.sleep(0.1)
 
 def recv():
     """Поток для получения ответов от дронов"""
@@ -183,7 +178,6 @@ def recv():
             executed = data.decode(encoding='utf-8')
             print(executed)
         except Exception as ex:
-
             print(ex)
             break
 
@@ -211,7 +205,6 @@ s.sendto('battery?'.encode(encoding='utf-8'), tello_address)
 s.sendto('streamon'.encode(encoding='utf-8'), tello_address)  # Включаем видеопоток
 s.sendto('takeoff'.encode(encoding='utf-8'), tello_address)
 time.sleep(3)
-s.sendto('up 50'.encode(encoding='utf-8'), tello_address)
-time.sleep(3)
+
 
 
