@@ -204,7 +204,4 @@ command_thread.start()
 s.sendto('battery?'.encode(encoding='utf-8'), tello_address)
 s.sendto('streamon'.encode(encoding='utf-8'), tello_address)  # Включаем видеопоток
 s.sendto('takeoff'.encode(encoding='utf-8'), tello_address)
-time.sleep(3)
-
-
-
+time.sleep(2)
